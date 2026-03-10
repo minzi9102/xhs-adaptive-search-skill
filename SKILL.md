@@ -1,6 +1,6 @@
 ---
 name: xhs-adaptive-search
-description: Guide Codex to run multi-round Xiaohongshu search by directly using xiaohongshu-automation commands, without any dedicated orchestration scripts. Use when you need manual 1-3 round strategy control, backend fallback (mcp then legacy), and reproducible trace artifacts.
+description: Guide Codex to run multi-round Xiaohongshu search by directly using xiaohongshu-automation commands, without any dedicated orchestration scripts. Use when you need manual 1-3 round strategy control and reproducible trace artifacts.
 ---
 
 # XHS Adaptive Search
@@ -18,22 +18,14 @@ description: Guide Codex to run multi-round Xiaohongshu search by directly using
   - 停止判断
   - 结果汇总与追踪记录
 
-## Backend Decision
-先探测后端：
+## Readiness Check
+先做环境探测：
 
 ```powershell
-uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py doctor --backend mcp
+uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py doctor
 ```
 
-- 若成功，后续 `search` 用 `--backend mcp`
-- 若失败，记录失败原因并降级：
-
-```powershell
-uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py doctor --backend legacy
-```
-
-- 若 `legacy` 成功，后续全部用 `--backend legacy`
-- 若两者都失败，停止并输出失败说明
+- 若失败，先修复 `npx`/环境问题再开始轮次检索。
 
 ## Three-Round Search Template
 所有轮次都通过 `xhs.py search` 执行。
@@ -43,7 +35,7 @@ uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scrip
 - 推荐查询：目标词 + 相邻词，最多 6 个
 
 ```powershell
-uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py search --backend <mcp|legacy> -- `
+uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py search -- `
   --query "AI" --query "AIGC" --query "AI工具" --query "AI编程" --query "AI Agent" --query "AI副业" `
   --sort newest --top-n 12 --min-likes 0 --open-first `
   --state-file output\playwright\xiaohongshu-state.json `
@@ -77,7 +69,7 @@ uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scrip
 - `tool_raw_result`
 - `decision_reason`
 - `next_plan`
-- `backend_used`
+- `backend_used`（固定填写 `legacy`）
 
 ## References
 - 轮次提示词模板：`references/prompts.md`

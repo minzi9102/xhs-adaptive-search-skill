@@ -1,4 +1,4 @@
 interface:
   display_name: "XHS Adaptive Search"
   short_description: "No-script guide for multi-round XHS search"
-  default_prompt: "Use $xhs-adaptive-search to guide Codex through manual 1-3 round Xiaohongshu search via xiaohongshu-automation. Probe backend with doctor (mcp then legacy), run search by round policy, and produce final_results.json plus round_trace.json without any dedicated orchestrator script."
+  default_prompt: "Use $xhs-adaptive-search to guide Codex through manual 1-3 round Xiaohongshu search via xiaohongshu-automation legacy workflow. Run doctor first, then search by round policy, and produce final_results.json plus round_trace.json without any dedicated orchestrator script."
