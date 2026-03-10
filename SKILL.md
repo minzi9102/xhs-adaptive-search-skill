@@ -1,55 +1,83 @@
 ---
 name: xhs-adaptive-search
-description: Orchestrate Xiaohongshu adaptive multi-round search without modifying xiaohongshu-automation. Use when you need a reproducible 1-3 round loop (broad recall, theme refine, high-like converge), backend auto fallback (mcp then legacy), and full per-round trace output for review.
+description: Guide Codex to run multi-round Xiaohongshu search by directly using xiaohongshu-automation commands, without any dedicated orchestration scripts. Use when you need manual 1-3 round strategy control, backend fallback (mcp then legacy), and reproducible trace artifacts.
 ---
 
 # XHS Adaptive Search
 
-使用新技能编排器执行最多 3 轮检索，不改动 `xiaohongshu-automation` 本体。
+本技能是无脚本指导技能，不提供可执行脚本。
+目标是指导 Codex 直接调用 `xiaohongshu-automation` 进行最多 3 轮检索，并整理可复盘产物。
 
-统一入口：
-`uv run --python .\.venv\Scripts\python.exe .\skills\xhs-adaptive-search\scripts\orchestrate_search.py --goal "<目标>" --constraints "<约束>"`
+## Zero-Script Rule
+- 不调用 `xhs-adaptive-search/scripts` 下任何脚本。
+- 仅调用：
+  - `.\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py doctor`
+  - `.\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py search`
+- 由 Codex 在会话中负责：
+  - 轮次策略制定
+  - 停止判断
+  - 结果汇总与追踪记录
 
-## Workflow
-- 主 Agent（本技能脚本）：
-  - 解析 `goal/constraints`
-  - 生成每轮检索策略
-  - 判定继续或停止
-  - 输出 `final_results.json` 和 `round_trace.json`
-- 子 Agent（黑盒工具）：
-  - 仅调用 `.\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py search`
-  - 不做解释与重写，只返回检索产物
+## Backend Decision
+先探测后端：
 
-## Round Policy
-- `round1`：广召回（`sort=newest`, `top_n=12`, `min_likes=0`）
-- `round2`：主题聚焦（`sort=newest`, `top_n=10`, `min_likes=50`）
-- `round3`：高赞收敛（`sort=likes_desc`, `top_n=8`, `min_likes=500`）
-- `max_rounds` 上限为 3。
+```powershell
+uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py doctor --backend mcp
+```
 
-## Backend Policy
-- 默认：`--backend-policy auto`
-- 自动策略：
-  - 先执行 `doctor --backend mcp`
-  - 失败后自动降级 `doctor --backend legacy`
-  - 在 `round_trace` 记录降级原因与最终后端
-- 可显式指定：`mcp` 或 `legacy`
+- 若成功，后续 `search` 用 `--backend mcp`
+- 若失败，记录失败原因并降级：
 
-## Failure Handling
-- 每轮子调用失败先同轮重试 1 次（可由参数调整）。
-- 同轮仍失败：进入下一轮并改写查询策略。
-- 达到最大轮次后输出“最佳可得结果 + 失败记录”。
+```powershell
+uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py doctor --backend legacy
+```
 
-## Output Contract
-- `final_results.json`：跨轮去重后的最终候选与元信息。
-- `round_trace.json`：每轮必含字段：
-  - `round_id`
-  - `intent_summary`
-  - `queries_tried`
-  - `observations`
-  - `tool_raw_result`
-  - `decision_reason`
-  - `next_plan`
-  - `backend_used`
+- 若 `legacy` 成功，后续全部用 `--backend legacy`
+- 若两者都失败，停止并输出失败说明
+
+## Three-Round Search Template
+所有轮次都通过 `xhs.py search` 执行。
+
+`round1`（广召回）
+- 推荐参数：`sort=newest`, `top_n=12`, `min_likes=0`
+- 推荐查询：目标词 + 相邻词，最多 6 个
+
+```powershell
+uv run --python .\.venv\Scripts\python.exe .\skills\xiaohongshu-automation\scripts\entrypoints\xhs.py search --backend <mcp|legacy> -- `
+  --query "AI" --query "AIGC" --query "AI工具" --query "AI编程" --query "AI Agent" --query "AI副业" `
+  --sort newest --top-n 12 --min-likes 0 --open-first `
+  --state-file output\playwright\xiaohongshu-state.json `
+  --output-json output\playwright\xhs-adaptive-search\round1-search.json `
+  --screenshot output\playwright\xhs-adaptive-search\round1-opened.png
+```
+
+`round2`（主题聚焦）
+- 依据 round1 高频主题改写查询
+- 推荐参数：`sort=newest`, `top_n=10`, `min_likes=50`
+
+`round3`（高赞收敛）
+- 依据 round2 结果收敛
+- 推荐参数：`sort=likes_desc`, `top_n=8`, `min_likes=500`
+
+## Stop Rule
+- 最多 3 轮
+- 任一轮满足需求可提前停止
+- 单轮失败先重试 1 次；仍失败则进入下一轮改写策略
+
+## Required Deliverables
+最终要产出并保存：
+- `final_results.json`
+- `round_trace.json`
+
+`round_trace.json` 每轮固定字段：
+- `round_id`
+- `intent_summary`
+- `queries_tried`
+- `observations`
+- `tool_raw_result`
+- `decision_reason`
+- `next_plan`
+- `backend_used`
 
 ## References
-- 策略模板：`references/prompts.md`
+- 轮次提示词模板：`references/prompts.md`

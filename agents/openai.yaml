@@ -1,4 +1,4 @@
 interface:
   display_name: "XHS Adaptive Search"
-  short_description: "Three-round adaptive XHS search orchestrator"
-  default_prompt: "Use $xhs-adaptive-search when the task needs reproducible 1-3 round Xiaohongshu search orchestration with trace outputs. Run orchestrate_search.py with goal/constraints, keep xiaohongshu-automation as a black-box sub-agent, and preserve final_results.json plus round_trace.json."
+  short_description: "No-script guide for multi-round XHS search"
+  default_prompt: "Use $xhs-adaptive-search to guide Codex through manual 1-3 round Xiaohongshu search via xiaohongshu-automation. Probe backend with doctor (mcp then legacy), run search by round policy, and produce final_results.json plus round_trace.json without any dedicated orchestrator script."
