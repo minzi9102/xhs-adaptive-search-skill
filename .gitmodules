@@ -1,0 +1,3 @@
+[submodule "skills/xiaohongshu-automation"]
+	path = skills/xiaohongshu-automation
+	url = https://github.com/minzi9102/xiaohongshu-automation-skill.git
